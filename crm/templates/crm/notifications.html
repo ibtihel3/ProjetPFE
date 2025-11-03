@@ -1,29 +1,167 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block content %}
-<div class="container mt-4">
-  <h2>🚨 Clients at Risk of Churn</h2>
+<style>
+/* ======= Modern Dashboard Styling ======= */
+body { font-family:'Segoe UI',Roboto,Arial,sans-serif; background-color:#f7f9fc; }
+.dashboard-container { width:92%; margin:30px auto; background:#fff; border-radius:16px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.1); padding:26px 34px; }
+h2 { color:#2b3a67; margin-bottom:16px; border-left:6px solid #4CAF50; padding-left:12px; }
+.filters { display:grid; grid-template-columns:repeat(3,minmax(160px,1fr)) auto; gap:12px; margin:12px 0 22px 0; }
+.filters select { padding:8px 10px; border:1px solid #ddd; border-radius:8px; background:white; }
+.filters .actions { display:flex; gap:10px; align-items:center; }
+.btn { background:#4CAF50; color:white; padding:8px 14px; border-radius:8px;
+  text-decoration:none; border:none; cursor:pointer; }
+.btn.secondary { background:#e9eef5; color:#2b3a67; }
+.section-title { color:#2b3a67; margin-top:22px; margin-bottom:10px; font-weight:600; }
+.card-group { margin-top:18px; }
+.client-card { background:#fafafa; border-radius:12px; padding:14px 16px; margin-bottom:14px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+.client-header { display:flex; justify-content:space-between; align-items:center; }
+.client-header h4 { margin:0; font-size:1rem; color:#2b3a67; }
+.badge { padding:3px 8px; border-radius:6px; font-size:0.8rem; color:white; }
+.badge.high { background:#e74c3c; }
+.badge.moderate { background:#f1c40f; color:#222; }
+.badge.low { background:#2ecc71; }
+.metric-line { font-size:0.9rem; color:#555; margin-top:4px; }
+.metric-line span { margin-right:12px; }
+.reco-list { margin-top:6px; padding-left:20px; }
+.reco-list li { font-size:0.9rem; color:#333; margin-bottom:3px; }
+.alert-success, .alert-danger { border-radius:8px; padding:10px 14px; font-weight:500; }
+@media (max-width:1100px){
+  .filters{grid-template-columns:repeat(2,1fr);}
+}
 
-  {% if data.error %}
-    <div class="alert alert-danger">Error: {{ data.error }}</div>
-  {% else %}
-    <p><strong>{{ data.count }}</strong> clients identified as at risk.</p>
+/* ======= Added: Scrollable Risk Sections ======= */
+.risk-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  margin-top: 20px;
+}
 
-    {% if data.notifications %}
-      <div class="list-group">
-        {% for n in data.notifications %}
-        <div class="list-group-item mb-3 shadow-sm">
-          <h5>{{ n.name }} — <span class="badge bg-danger">{{ n.risk_level }}</span></h5>
-          <ul>
-            {% for rec in n.recommendations %}
-              <li>{{ rec }}</li>
+.risk-section {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  padding: 18px 20px;
+}
+
+.scroll-container {
+  max-height: 400px;       /* makes each risk group scroll independently */
+  overflow-y: auto;
+  margin-top: 10px;
+  padding-right: 10px;
+}
+
+/* Scrollbar styling for Chrome / Edge */
+.scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-container::-webkit-scrollbar-thumb {
+  background-color: #c4c9cf;
+  border-radius: 4px;
+}
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background-color: #9098a0;
+}
+
+/* Optional: subtle separation between cards inside scrollable box */
+.scroll-container .client-card {
+  border: 1px solid #f0f0f0;
+}
+</style>
+
+
+<div class="dashboard-container">
+  <h2>🎯 Marketing Notifications Dashboard</h2>
+  <p style="color:#666;">Total at-risk clients: <strong>{{ count }}</strong></p>
+
+  <!-- ===== FILTERS ===== -->
+  <form method="get" class="filters">
+    <select name="region" id="region">
+      <option value="All">🌍 All Regions</option>
+      {% for r in regions %}
+        <option value="{{ r }}" {% if r == selected_region %}selected{% endif %}>{{ r }}</option>
+      {% endfor %}
+    </select>
+
+    <select name="risk" id="risk">
+      <option value="All" {% if selected_risk == "All" %}selected{% endif %}>⚠️ All Risks</option>
+      <option value="High" {% if selected_risk == "High" %}selected{% endif %}>🚨 High</option>
+      <option value="Moderate" {% if selected_risk == "Moderate" %}selected{% endif %}>⚠️ Moderate</option>
+      <option value="Low" {% if selected_risk == "Low" %}selected{% endif %}>✅ Low</option>
+    </select>
+
+    <div class="actions">
+      <button class="btn" type="submit">Apply Filters</button>
+      <a class="btn secondary" href="{% url 'notifications' %}">Clear</a>
+    </div>
+  </form>
+
+<!-- ===== RESULTS ===== -->
+{% if notifications %}
+  {% with notifications|dictsort:"risk_level" as sorted_notifications %}
+    {% regroup sorted_notifications by risk_level as grouped_notifications %}
+
+    <div class="risk-dashboard">
+      {% for group in grouped_notifications %}
+        <div class="risk-section">
+          <h3 class="section-title">
+            {% if group.grouper == 'High' %}
+              🚨 High Risk Clients
+            {% elif group.grouper == 'Moderate' %}
+              ⚠️ Moderate Risk Clients
+            {% else %}
+              ✅ Low Risk Clients
+            {% endif %}
+          </h3>
+
+          <div class="scroll-container">
+            {% for n in group.list %}
+              <div class="client-card">
+                <div class="client-header">
+                  <h4>{{ n.name }}</h4>
+                  <span class="badge
+                    {% if n.risk_level == 'High' %}high
+                    {% elif n.risk_level == 'Moderate' %}moderate
+                    {% else %}low{% endif %}">
+                    {{ n.risk_level }}
+                  </span>
+                </div>
+
+                <p class="metric-line">
+                  <span>💳 Orders: {{ n.total_orders|default:"-" }}</span>
+                  <span>💰 Spent:
+                    {% if n.total_spent and n.total_spent > 0 %}
+                      {{ n.total_spent|floatformat:2 }}
+                    {% else %}-{% endif %}
+                  </span>
+                </p>
+
+                {% if n.recommendations %}
+                  <ul class="reco-list">
+                    {% for rec in n.recommendations %}
+                      <li>💡 {{ rec }}</li>
+                    {% endfor %}
+                  </ul>
+                {% endif %}
+              </div>
+            {% empty %}
+              <p class="text-muted small mb-0">No clients under {{ group.grouper }} risk.</p>
             {% endfor %}
-          </ul>
+          </div>
         </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="alert alert-info">No at-risk clients found.</div>
-    {% endif %}
-  {% endif %}
+      {% endfor %}
+    </div>
+
+  {% endwith %}
+{% else %}
+  <div class="alert alert-success text-center">
+      ✅ Clients under this category are performing well, no alerts to display.
+  </div>
+{% endif %}
+
+
+
 </div>
 {% endblock %}

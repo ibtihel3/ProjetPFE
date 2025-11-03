@@ -811,7 +811,7 @@ Be precise and consistent with the existing data structure.
         return redirect("product_list")
 
 # ==============================================
-# ✉️ NEWSLETTER (Email + WhatsApp via Twilio)
+# NEWSLETTER (Email + WhatsApp via Twilio)
 # ==============================================
 from django.core.mail import send_mail
 from django.conf import settings
@@ -941,30 +941,62 @@ def ajax_search_products(request):
 
 
 # ==============================================
-# Alert Notification for at risk clients
+# FastAPI : Alert Notification for at risk clients
 # ==============================================
-
 import requests
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
 
 @login_required
 def notifications(request):
-    """Fetch and display client churn notifications from FastAPI."""
+    """Fetch and filter at-risk clients from the FastAPI marketing endpoint."""
+    notifications = []
+    count = 0
+    error = None
+
+    # --- Get filter parameters from query string ---
+    selected_region = request.GET.get("region", "All")
+    selected_risk = request.GET.get("risk", "All")
+
     try:
-        api_url = "http://127.0.0.1:8002/notify/at_risk_clients"
+        api_url = "http://127.0.0.1:8000/api/notify/at_risk_clients"
         response = requests.get(api_url, timeout=10)
+        print("🔍 Status:", response.status_code)
+        print("🔍 Response text:", response.text[:200])
+
+        if response.status_code != 200:
+            raise Exception(f"API error {response.status_code}: {response.text[:100]}")
+
         data = response.json()
+        notifications = data.get("notifications", [])
+        count = data.get("count", len(notifications))
 
-        # 🔧 Fix missing names and capitalize
-        for n in data.get("notifications", []):
-            if not n.get("name") or n["name"] == "None":
-                n["name"] = f"Client {n.get('client_id', 'Unknown')}"
-            else:
-                n["name"] = str(n["name"]).title()
+        # --- Apply filters ---
+        if selected_region != "All":
+            notifications = [n for n in notifications if str(n.get("region", "")).lower() == selected_region.lower()]
 
+        if selected_risk != "All":
+            notifications = [n for n in notifications if n.get("risk_level", "").lower() == selected_risk.lower()]
+
+        count = len(notifications)
+
+        # --- Extract unique regions for dropdown ---
+        regions = sorted(set([n.get("region", "Unknown") for n in data.get("notifications", [])]))
 
     except Exception as e:
-        data = {"error": str(e), "notifications": []}
+        error = str(e)
+        regions = []
+        print("⚠️ Error:", error)
 
-    return render(request, "crm/notifications.html", {"data": data})
+    return render(
+        request,
+        "crm/notifications.html",
+        {
+            "notifications": notifications,
+            "count": count,
+            "error": error,
+            "regions": regions,
+            "selected_region": selected_region,
+            "selected_risk": selected_risk,
+        },
+    )
