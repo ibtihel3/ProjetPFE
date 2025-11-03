@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+{% load plotly_dash %}
+<style>
+  iframe.django-plotly-dash {
+      background: transparent !important;
+      border: none !important;
+      width: 100% !important;
+      height: calc(100vh - 100px) !important; /* keep room for navbar */
+      overflow: hidden !important;
+  }
+  .plotly-dash {
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      margin: 0 !important;
+  }
+</style>
+
+<div style="width:100%; height:100%; padding:0; margin:0; background:transparent;">
+  {% plotly_app name="dash_app" ratio=1 %}
+</div>
+{% plotly_footer %}
+{% endblock %}
+

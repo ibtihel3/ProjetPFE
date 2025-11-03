@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>👥 Clients</h2>
+<a href="{% url 'client_add' %}">➕ Add Client</a>
+<br><br>
+
+<!-- Scrollable container -->
+<div style="max-height:500px; overflow:auto; border:1px solid #ccc; border-radius:8px;">
+  <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; min-width:1200px;">
+    <!-- Table Header -->
+    <thead>
+      <tr style="background:#4CAF50; color:white; position:sticky; top:0;">
+        <th>#</th>
+        <th>Customer ID</th>
+        <th>Name</th>
+        <th>Gender</th>
+        <th>Region</th>
+        <th>Age</th>
+        <th>Source</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Income Segment</th>
+        <th>Loyalty Status</th>
+        <th>Active</th>
+        <th>Predicted CLV</th>
+        <th>Registration Date</th>
+        <th>Total Spent</th>
+        <th>Avg Order Value</th>
+        <th>Total Orders</th>
+        <th>Total Items</th>
+        <th>Avg Discount</th>
+        <th>Avg Review Rating</th>
+        <th>Avg Seller Rating</th>
+        <th>Avg Delivery Days</th>
+        <th>Total Returns</th>
+        <th>Return Ratio</th>
+        <th>Total Previous Returns</th>
+        <th>Prime Member</th>
+        <th>Customer Tenure Days</th>
+        <th>Last Order Date</th>
+        <th>First Order Date</th>
+        <th>Recency Days</th>
+        <th>Tenure Days</th>
+        <th>Frequency</th>
+        <th>Actions</th>
+
+      </tr>
+    </thead>
+
+    <!-- Table Body -->
+    <tbody>
+      {% for p in page_obj %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ p.customer_id }}</td>
+        <td>{{ p.name }}</td>
+        <td>{{ p.gender }}</td>
+        <td>{{ p.region }}</td>
+        <td>{{ p.age }}</td>
+        <td>{{ p.source }}</td>
+        <td>
+          {% if p.email %}
+            <a href="mailto:{{ p.email }}">{{ p.email }}</a>
+          {% else %}
+            <span style="color:#999;">—</span>
+          {% endif %}
+        </td>
+        <td>{{ p.phone }}</td>
+        <td>{{ p.income_segment }}</td>
+        <td>{{ p.loyalty_status }}</td>
+        <td>{{ p.is_active }}</td>
+        <td style="color:green;">{{ p.predicted_clv|floatformat:2 }}</td>
+        <td>{{ p.registration_date }}</td>
+        <td>{{ p.total_spent }}</td>
+        <td>{{ p.avg_order_value }}</td>
+        <td>{{ p.total_orders }}</td>
+        <td>{{ p.total_items }}</td>
+        <td>{{ p.avg_discount }}</td>
+        <td>{{ p.avg_review_rating }}</td>
+        <td>{{ p.avg_seller_rating }}</td>
+        <td>{{ p.avg_delivery_days }}</td>
+        <td>{{ p.total_returns }}</td>
+        <td>{{ p.return_ratio }}</td>
+        <td>{{ p.total_previous_returns }}</td>
+        <td>{{ p.is_prime_member }}</td>
+        <td>{{ p.customer_tenure_days }}</td>
+        <td>{{ p.last_order_date }}</td>
+        <td>{{ p.first_order_date }}</td>
+        <td>{{ p.recency_days }}</td>
+        <td>{{ p.tenure_days }}</td>
+        <td>{{ p.frequency }}</td>
+        <td>
+          <a href="{% url 'client_edit' p.id %}">✏️ Edit</a> |
+          <a href="{% url 'client_delete' p.id %}">🗑️ Delete</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="33" style="text-align:center;">No clients found.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination Controls -->
+<div style="margin-top:20px; text-align:center;">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}">⬅️ Previous</a>
+  {% endif %}
+  <span> Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} </span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">Next ➡️</a>
+  {% endif %}
+</div>
+
+<!-- Modal Styling & Script -->
+<style>
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+  background-color: #fff;
+  margin: 10% auto;
+  padding: 20px;
+  border-radius: 10px;
+  width: 60%;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.close {
+  float: right;
+  font-size: 24px;
+  cursor: pointer;
+}
+</style>
+
+<script>
+function openModal(id) {
+  document.getElementById("modal-" + id).style.display = "block";
+}
+function closeModal(id) {
+  document.getElementById("modal-" + id).style.display = "none";
+}
+// Close modal when clicking outside
+window.onclick = function(event) {
+  document.querySelectorAll('.modal').forEach(modal => {
+    if (event.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+}
+</script>
+
+{% endblock %}

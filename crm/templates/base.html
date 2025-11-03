@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>{{ title|default:"Business Dashboard" }}</title>
+  <style>
+    body { font-family: Arial; margin: 40px; background: #f5f6f8; }
+    nav a { margin-right: 15px; text-decoration: none; color: #333; }
+    .logout { float: right; color: red; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="{% url 'home' %}">🏠 Home</a>
+    <a href="{% url 'product_list' %}">🛍️ Products</a>
+    <a href="{% url 'client_list' %}"> 👥 Clients</a>
+    <a href="{% url 'logout' %}" class="logout">Logout</a>
+    <a href="{% url 'reviews_dashboard' %}">📈 Reviews </a>
+    <a href="{% url 'chatbot_page' %}">💬 AI Assistant </a>
+    <a href="{% url 'send_newsletter' %}">📤 Newsletter </a>
+  </nav>
+
+
+
+  {% block content %}{% endblock %}
+</body>
+</html>

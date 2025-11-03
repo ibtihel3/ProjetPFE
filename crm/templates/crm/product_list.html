@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>📦 Products</h2>
+<a href="{% url 'product_add' %}">➕ Add Product</a>
+
+
+<!-- 🖼️ Search by Image -->
+<form action="{% url 'similar_from_image' %}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2 mb-0" style="flex: 1; max-width: 350px;">
+      {% csrf_token %}
+      <input type="file" name="image" accept="image/*" class="form-control" required style="height:45px;">
+      <button type="submit" class="btn btn-outline-primary" style="height:45px; white-space:nowrap;">
+        🖼️ Find Similar
+      </button>
+</form>
+
+<!-- 🔍 Search by Text -->
+<div class="position-relative d-flex align-items-center" style="flex: 1; max-width: 450px;">
+      <input
+        type="text"
+        id="productSearch"
+        class="form-control"
+        placeholder="Search for products..."
+        autocomplete="off"
+        style="height:45px;"
+      />
+      <div
+        id="searchResults"
+        class="position-absolute bg-white border rounded shadow-lg mt-1 w-100"
+        style="display:none; z-index:2000; max-height:400px; overflow-y:auto;"
+      ></div>
+</div>
+
+<br><br>
+<div style="max-height:500px; overflow:auto; border:1px solid #ccc; border-radius:8px;">
+  <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; min-width:1200px;">
+   <tr style="background:#4CAF50; color:white;">
+    <th>Name</th>
+    <th>Category</th>
+    <th>Similar Products</th>
+    <th>Predicted Discount (%)</th>
+    <th>Discounted (€)</th>
+    <th>Actual (€)</th>
+    <th>Rating</th>
+    <th>Rating Count</th>
+    <th>About Product</th>
+    <th>Stock</th>
+    <th>Creation Date</th>
+    <th>Last Updated</th>
+    <th>Status</th>
+    <th>Actions</th>
+  </tr>
+
+  {% for p in page_obj %}
+   <tr>
+       <!-- Name Pagination -->
+    <td>
+      {% if p.product_name %}
+        {% with p.product_name.split as words %}
+          {% if words|length > 3 %}
+            {{ words|slice:":3"|join:" " }}...
+            <a href="#" onclick="openModal('{{ p.id1 }}'); return false;">Read more</a>
+            <!-- Modal -->
+            <div id="modal-{{ p.id1 }}" class="modal">
+              <div class="modal-content">
+                <h3>{{ p.product_name }}</h3>
+              </div>
+            </div>
+          {% else %}
+            {{ p.product_name }}
+          {% endif %}
+        {% endwith %}
+      {% else %}
+        -
+      {% endif %}
+    </td>
+    <td>{{ p.category }}</td>
+    <td>
+      <a href="{% url 'similar_products' p.id %}">🔍 Similar</a>
+    </td>
+    <td style="color:green;">
+      {% if p.discount_percentage %}
+        {{ p.discount_percentage}}
+      {% else %}
+        <a href="{% url 'predict_for_product' p.id %}">🔮 Predict</a>
+      {% endif %}
+    </td>
+    <td>{{ p.discounted_price}}</td>
+    <td>{{ p.actual_price|floatformat:2 }}</td>
+    <td>{{ p.rating|default:"-" }}</td>
+    <td>{{ p.rating_count }}</td>
+
+    <!-- About Product truncated -->
+    <td>
+      {% if p.about_product %}
+        {% with p.about_product.split as words %}
+          {% if words|length > 3 %}
+            {{ words|slice:":3"|join:" " }}...
+            <a href="#" onclick="openModal('{{ p.id }}'); return false;">Read more</a>
+
+            <!-- Modal -->
+            <div id="modal-{{ p.id }}" class="modal">
+              <div class="modal-content">
+                <span class="close" onclick="closeModal('{{ p.id }}')">&times;</span>
+                <h3>{{ p.product_name }}</h3>
+                <p>{{ p.about_product }}</p>
+              </div>
+            </div>
+          {% else %}
+            {{ p.about_product }}
+          {% endif %}
+        {% endwith %}
+      {% else %}
+        -
+      {% endif %}
+    </td>
+
+    <td>{{ p.stock }}</td>
+    <td>{{ p.creation_date }}</td>
+    <td>{{ p.last_updated_date }}</td>
+    <td>{{ p.status }}</td>
+    <td>
+      <a href="{% url 'product_edit' p.id %}">✏️ Edit</a> |
+      <a href="{% url 'product_delete' p.id %}">🗑️ Delete</a>
+    </td>
+  </tr>
+   {% empty %}
+   <tr><td colspan="13" style="text-align:center;">No products found.</td></tr>
+   {% endfor %}
+  </table>
+
+<!-- Pagination Controls -->
+<div style="margin-top:20px; text-align:center;">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}">⬅️ Previous</a>
+  {% endif %}
+
+  <span> Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }} </span>
+
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">Next ➡️</a>
+  {% endif %}
+</div>
+
+<!-- ===== Modal Styling & Script ===== -->
+<style>
+.hover-bg-light:hover {
+  background-color: #f8f9fa;
+  cursor: pointer;
+}
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 10;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+  background-color: #fff;
+  margin: 10% auto;
+  padding: 20px;
+  border-radius: 10px;
+  width: 60%;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.close {
+  float: right;
+  font-size: 24px;
+  cursor: pointer;
+}
+</style>
+
+<script>
+function openModal(id) {
+  document.getElementById("modal-" + id).style.display = "block";
+}
+function closeModal(id) {
+  document.getElementById("modal-" + id).style.display = "none";
+}
+// Close modal when clicking outside
+window.onclick = function(event) {
+  document.querySelectorAll('.modal').forEach(modal => {
+    if (event.target === modal) {
+      modal.style.display = "none";
+    }
+  });
+}
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const searchInput = document.getElementById("productSearch");
+  const resultsBox = document.getElementById("searchResults");
+
+  // when typing
+  searchInput.addEventListener("input", async () => {
+    const query = searchInput.value.trim();
+
+    if (!query) {
+      resultsBox.style.display = "none";
+      resultsBox.innerHTML = "";
+      return;
+    }
+
+    // make AJAX call to your Django endpoint
+    const response = await fetch(`/ajax/search-products/?q=${encodeURIComponent(query)}`);
+    const data = await response.json();
+
+    // if results found
+    if (data.results && data.results.length > 0) {
+      resultsBox.style.display = "block";
+      resultsBox.innerHTML = `
+        <div class="p-2 border-bottom fw-bold text-secondary bg-light">Results</div>
+        <div class="row row-cols-2 g-2 p-2">
+          ${data.results.map(
+            (p) => `
+              <div class="col p-2 border-bottom hover-bg-light">
+                <strong>${p.name}</strong><br>
+                <small class="text-muted">${p.category}</small><br>
+                <span class="fw-semibold text-success">$${p.discounted_price}</span>
+                <span class="text-muted me-2"><s>$${p.actual_price}</s></span>
+              </div>
+            `
+          ).join("")}
+        </div>`;
+    } else {
+      // if nothing found
+      resultsBox.style.display = "block";
+      resultsBox.innerHTML = '<div class="p-3 text-muted">No results found</div>';
+    }
+  });
+
+  // hide menu when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!resultsBox.contains(e.target) && e.target !== searchInput) {
+      resultsBox.style.display = "none";
+    }
+  });
+});
+</script>
+
+{% endblock %}

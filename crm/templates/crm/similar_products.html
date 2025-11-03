@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>🔍 Similar Products to: <span style="color:#4CAF50;">{{ product.product_name }}</span></h2>
+<p>Based on name, category, and description similarity.</p>
+{% if query_description %}
+<div class="alert alert-info">
+  <strong>Image described as:</strong> {{ query_description }}
+</div>
+{% endif %}
+
+<table border="1" cellpadding="8" style="width:100%; border-collapse:collapse;">
+  <tr style="background:#4CAF50; color:white;">
+    <th>Name</th>
+    <th>Category</th>
+    <th>Discounted (€)</th>
+    <th>Actual (€)</th>
+    <th>Discount (%)</th>
+    <th>Rating</th>
+    <th>Stock</th>
+    <th>Status</th>
+  </tr>
+
+  {% for p in similar_products %}
+  <tr>
+    <td>{{ p.product_name }}</td>
+    <td>{{ p.category }}</td>
+    <td>{{ p.discounted_price|floatformat:2 }}</td>
+    <td>{{ p.actual_price|floatformat:2 }}</td>
+    <td>{{ p.discount_percentage|floatformat:2 }}</td>
+    <td>{{ p.rating|default:"-" }}</td>
+    <td>{{ p.stock }}</td>
+    <td>{{ p.status }}</td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="8" style="text-align:center;">No similar products found.</td></tr>
+  {% endfor %}
+</table>
+
+<br>
+<a href="{% url 'product_list' %}" style="
+  background:#4CAF50; color:white; padding:8px 14px;
+  text-decoration:none; border-radius:5px;">⬅️ Back to Product List</a>
+{% endblock %}
+
+
