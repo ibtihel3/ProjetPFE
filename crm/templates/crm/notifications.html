@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>🚨 Clients at Risk of Churn</h2>
+
+  {% if data.error %}
+    <div class="alert alert-danger">Error: {{ data.error }}</div>
+  {% else %}
+    <p><strong>{{ data.count }}</strong> clients identified as at risk.</p>
+
+    {% if data.notifications %}
+      <div class="list-group">
+        {% for n in data.notifications %}
+        <div class="list-group-item mb-3 shadow-sm">
+          <h5>{{ n.name }} — <span class="badge bg-danger">{{ n.risk_level }}</span></h5>
+          <ul>
+            {% for rec in n.recommendations %}
+              <li>{{ rec }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-info">No at-risk clients found.</div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

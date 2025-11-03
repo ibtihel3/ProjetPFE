@@ -65,9 +65,8 @@ def logout_view(request):
 
 @login_required
 def home(request):
-    df = pd.read_csv("data/processed/cluster_summary.csv")
-    table = df.to_html(classes="table table-striped", index=False)
-    return render(request, "home.html",{"table": table})
+    """Main dashboard home view."""
+    return render(request, "home.html")
 
 # ==========================
 # 🛍️ PRODUCT CRUD
@@ -811,9 +810,6 @@ Be precise and consistent with the existing data structure.
         messages.error(request, f"Error while analyzing image: {str(e)}")
         return redirect("product_list")
 
-
-
-
 # ==============================================
 # ✉️ NEWSLETTER (Email + WhatsApp via Twilio)
 # ==============================================
@@ -942,3 +938,33 @@ def ajax_search_products(request):
         ]
 
     return JsonResponse({"results": results})
+
+
+# ==============================================
+# Alert Notification for at risk clients
+# ==============================================
+
+import requests
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+@login_required
+def notifications(request):
+    """Fetch and display client churn notifications from FastAPI."""
+    try:
+        api_url = "http://127.0.0.1:8002/notify/at_risk_clients"
+        response = requests.get(api_url, timeout=10)
+        data = response.json()
+
+        # 🔧 Fix missing names and capitalize
+        for n in data.get("notifications", []):
+            if not n.get("name") or n["name"] == "None":
+                n["name"] = f"Client {n.get('client_id', 'Unknown')}"
+            else:
+                n["name"] = str(n["name"]).title()
+
+
+    except Exception as e:
+        data = {"error": str(e), "notifications": []}
+
+    return render(request, "crm/notifications.html", {"data": data})

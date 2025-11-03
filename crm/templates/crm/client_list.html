@@ -4,6 +4,20 @@
 <a href="{% url 'client_add' %}">➕ Add Client</a>
 <br><br>
 
+
+<div class="card text-center shadow-sm border-danger my-4">
+  <div class="card-body">
+    <h5 class="card-title text-danger fw-bold">🚨 At-Risk Clients</h5>
+    <p class="card-text text-muted">
+      Check which clients might need re-engagement or loyalty campaigns.
+    </p>
+    <a href="{% url 'alerts' %}" class="btn btn-outline-danger fw-bold">
+      See who needs your attention today
+    </a>
+  </div>
+</div>
+
+<br><br>
 <!-- Scrollable container -->
 <div style="max-height:500px; overflow:auto; border:1px solid #ccc; border-radius:8px;">
   <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse; min-width:1200px;">

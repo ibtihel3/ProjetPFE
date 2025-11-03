@@ -31,4 +31,5 @@ urlpatterns = [
     path("crm/similar_from_image/", views.similar_from_image, name="similar_from_image"),
     path("newsletter/", views.send_newsletter, name="send_newsletter"),
     path("ajax/search-products/", views.ajax_search_products, name="ajax_search_products"),
+    path("alerts/", views.notifications, name="alerts"),
 ]
