@@ -1,5 +1,87 @@
 {% extends "base.html" %}
 {% block content %}
+
+<style>
+/* ======= Newsletter Styling (matches dashboard) ======= */
+body { font-family:'Segoe UI',Roboto,Arial,sans-serif; background-color:#f7f9fc; }
+.newsletter-container {
+  width: 92%;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 30px 36px;
+}
+
+.newsletter-container h2 {
+  color: #2b3a67;
+  margin-bottom: 18px;
+  border-left: 6px solid #4CAF50;
+  padding-left: 12px;
+  font-weight: 600;
+}
+
+.form-label {
+  font-weight: 500;
+  color: #2b3a67;
+}
+
+.form-control {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: border-color 0.2s ease;
+}
+.form-control:focus {
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76,175,80,0.15);
+  outline: none;
+}
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+.btn-success {
+  background: #2ecc71;
+  color: white;
+}
+.btn-success:hover { background: #27ae60; }
+
+.btn-primary {
+  background: #4CAF50;
+  color: white;
+}
+.btn-primary:hover { background: #43a047; }
+
+.d-flex.gap-2 {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+textarea.form-control {
+  resize: vertical;
+}
+
+/* Mobile-friendly layout */
+@media (max-width: 768px) {
+  .newsletter-container { padding: 20px; }
+  .d-flex.gap-2 { flex-direction: column; }
+}
+</style>
+
+
 <div class="container mt-5">
   <h2>📨 Send Newsletter</h2>
   <form method="POST">

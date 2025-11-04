@@ -62,10 +62,11 @@ def logout_view(request):
 # ==========================
 # 🏠 DASHBOARD HOME
 # ==========================
-
+import time
 @login_required
 def home(request):
     """Main dashboard home view."""
+    context = {"server_session_id": int(time.time())}  # resets chatbot eash time
     return render(request, "home.html")
 
 # ==========================
@@ -313,7 +314,7 @@ print(f"✅ Loaded {len(df_products)} products and {len(df_clients)} clients.")
 
 # Products
 df_products["search_text"] = df_products.apply(
-    lambda x: f"{x['product_name']} {x['category']} {x['about_product']}", axis=1
+    lambda x: f"{x['product_name']} {x['category']} {x['about_product']} {x['rating']} {x['rating_count']}", axis=1
 )
 
 # Clients
@@ -367,62 +368,108 @@ def chatbot(request):
     if not user_message:
         return JsonResponse({"response": "Please enter a question."})
 
-    # Step 1: Retrieve the most relevant data (Products & Clients in parallel)
+    # Step 1: Retrieve relevant data
     relevant_products, prod_scores = get_relevant_products(user_message)
     relevant_clients, cli_scores = get_relevant_clients(user_message)
 
-    # Compare top similarity scores
     top_prod_score = float(prod_scores.max()) if len(prod_scores) > 0 else 0
     top_cli_score = float(cli_scores.max()) if len(cli_scores) > 0 else 0
+    min_relevance = 0.2
 
+    # Step 2: Detect context
     client_keywords = ["client", "customer", "user", "buyer", "loyalty", "region", "income", "segment"]
-    if any(word in user_message.lower() for word in client_keywords):
+    marketing_keywords = [
+        "improve", "boost", "increase", "strategy", "sell more", "marketing",
+        "campaign", "promotion", "discount", "sale", "performance", "growth",
+        "visibility", "conversion", "retention"
+    ]
+
+    # Context decision logic
+    if any(word in user_message.lower() for word in marketing_keywords):
+        context_type = "marketing_advice"
+        relevant_df_prod = df_products.copy()
+        relevant_df_cli = df_clients.copy()
+    elif any(word in user_message.lower() for word in client_keywords):
         context_type = "client"
-        relevant_df = relevant_clients
+        relevant_df_prod = None
+        relevant_df_cli = relevant_clients
+    elif top_prod_score < min_relevance and top_cli_score < min_relevance:
+        context_type = "fallback"
+        relevant_df_prod = df_products.sample(min(10, len(df_products)))
+        relevant_df_cli = None
     else:
-        # Fallback to similarity-based logic
-        if top_cli_score > top_prod_score:
-            context_type = "client"
-            relevant_df = relevant_clients
-        else:
-            context_type = "product"
-            relevant_df = relevant_products
+        context_type = "product" if top_prod_score >= top_cli_score else "client"
+        relevant_df_prod = relevant_products if context_type == "product" else None
+        relevant_df_cli = relevant_clients if context_type == "client" else None
 
-    csv_data = relevant_df.to_csv(index=False)
+    # Step 3: Prepare data for context
+    csv_products = relevant_df_prod.to_csv(index=False) if relevant_df_prod is not None else ""
+    csv_clients = relevant_df_cli.to_csv(index=False) if relevant_df_cli is not None else ""
 
-    # Step 2: Create prompt based on context
+    # Step 4: Build system prompt
     if context_type == "client":
         system_prompt = f"""
-You are an AI assistant helping a business owner analyze their CLIENT data.
-The following CSV rows contain the most relevant client information:
+You are an AI assistant analyzing CLIENT data for a business owner.
+Answer clearly based on the following CSV data only:
 
-{csv_data}
+{csv_clients}
 
-Each row includes:
-customer_id, name, gender, region, income_segment, loyalty_status,
-total_spent, total_orders, avg_order_value, is_active, is_prime_member,
-recency_days, frequency, and other metrics.
-
-Answer clearly and concisely based on this data only.
-If numeric or comparative reasoning is required, compute it logically.
+If the question is not about clients, respond:
+"I can only provide insights related to your client data."
 """
-    else:
+    elif context_type == "product":
         system_prompt = f"""
-You are an AI assistant helping a business owner analyze their PRODUCT data.
-The following CSV rows contain the most relevant product information:
+You are an AI assistant analyzing PRODUCT data for a business owner.
+Use the data below to provide accurate, structured answers.
 
-{csv_data}
+{csv_products}
 
-Each row includes:
-product_id, product_name, category, discounted_price, actual_price,
-discount_percentage, rating, rating_count, about_product, stock,
-creation_date, last_updated_date, status.
+If the question is not about products, say:
+"I can only provide insights related to your product data."
+"""
+    elif context_type == "marketing_advice":
 
-Answer clearly and concisely based on this data only.
-If numeric or comparative reasoning is required, compute it logically.
+        # Sample only a few representative rows to reduce token count
+        prod_sample = df_products.sample(min(30, len(df_products)))[
+            ["product_name", "category", "discounted_price", "actual_price",
+             "discount_percentage", "rating", "rating_count", "stock"]
+        ]
+        cli_sample = df_clients.sample(min(30, len(df_clients)))[
+            ["name", "region", "income_segment", "loyalty_status",
+             "total_spent", "total_orders", "is_active"]
+        ]
+
+        system_prompt = (
+            "You are an AI marketing strategist assistant integrated into a CRM system.\n\n"
+            "Your job is to analyze sales performance and give clear, actionable recommendations.\n"
+            "Use these datasets to identify opportunities and suggest business actions:\n"
+            "- Which products are underperforming?\n"
+            "- What can be promoted, discounted, or bundled?\n"
+            "- Which clients or segments can be reactivated?\n\n"
+            "If numeric reasoning is needed (e.g., lowest rating or stock), do simple comparisons.\n\n"
+            "Client Data (sampled):\n"
+            f"{cli_sample.to_csv(index=False)}\n\n"
+            "Product Data (sampled):\n"
+            f"{prod_sample.to_csv(index=False)}\n\n"
+            "Always answer with practical marketing advice, not generic text.\n"
+            "If the data is unclear, say: 'I need more detailed sales information to advise further.'"
+        )
+
+    else:  # fallback
+        system_prompt = f"""
+You are an AI assistant helping a business owner by suggesting products from their stock 
+that could be relevant to the user's request.
+
+The user may ask questions that are not about existing products or clients.
+
+If you can connect the question to any of the products below, recommend 3–5 that might be useful or related.
+If not, answer: "I can only provide suggestions or information about your current stock and client base."
+
+Available products:
+{csv_products}
 """
 
-    # Step 3: Ask Groq model
+    # Step 5: Call Groq model
     try:
         completion = client.chat.completions.create(
             model="openai/gpt-oss-120b",
@@ -430,7 +477,7 @@ If numeric or comparative reasoning is required, compute it logically.
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ],
-            temperature=0.3,
+            temperature=0.45,
             max_tokens=1200,
         )
         answer = completion.choices[0].message.content
@@ -438,6 +485,7 @@ If numeric or comparative reasoning is required, compute it logically.
 
     except Exception as e:
         return JsonResponse({"response": f"⚠️ Error: {str(e)}"})
+
 
 
 
@@ -704,12 +752,12 @@ def similar_from_image(request):
         return redirect("product_list")
 
     try:
-        # === 1️⃣ Encode uploaded image ===
+        # === Encode uploaded image ===
         image_file: InMemoryUploadedFile = request.FILES["image"]
         image_bytes = image_file.read()
         image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-        # === 2️⃣ Load categories + sample descriptions from DB ===
+        # === Load categories + sample descriptions from DB ===
         conn = sqlite3.connect("db.sqlite3")
         df = pd.read_sql_query(
             "SELECT category, about_product FROM crm_product WHERE about_product IS NOT NULL AND TRIM(about_product) != ''",
@@ -743,7 +791,7 @@ def similar_from_image(request):
             for _, row in examples.iterrows()
         )
 
-        # === 3️⃣ Build system prompt with grounded examples ===
+        # === Build system prompt with grounded examples ===
         system_prompt = f"""
 You are an AI vision assistant for an e-commerce platform.
 
@@ -760,7 +808,7 @@ Be precise and consistent with the existing data structure.
 
         client = Groq(api_key="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")
 
-        # === 4️⃣ Ask model to classify ===
+        # === Ask model to classify ===
         completion = client.chat.completions.create(
             model="meta-llama/llama-4-maverick-17b-128e-instruct",
             messages=[
@@ -778,7 +826,7 @@ Be precise and consistent with the existing data structure.
         predicted_category = completion.choices[0].message.content.strip()
         print(f"🧭 Predicted category: {predicted_category}")
 
-        # === 5️⃣ Retrieve all products in that category ===
+        # === Retrieve all products in that category ===
         from .models import Product
         similar_objs = Product.objects.filter(category__startswith=predicted_category)
 
@@ -794,7 +842,7 @@ Be precise and consistent with the existing data structure.
             )
             return redirect("product_list")
 
-        # === 6️⃣ Render page ===
+        # === Render page ===
         return render(
             request,
             "crm/similar_products.html",

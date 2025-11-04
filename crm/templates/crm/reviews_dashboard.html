@@ -66,26 +66,81 @@ tr:hover td { background-color: #f4f9f4; }
   </form>
 
   <!-- KPI Cards -->
-  <div class="card-container">
-    <div class="card"><h3>Total Reviews Analyzed</h3><p>{{ total_reviews }}</p></div>
-    <div class="card"><h3>Average Sentiment</h3><p>{{ avg_sentiment|floatformat:3 }}</p></div>
-    <div class="card">
-      <h3>Top Positive</h3>
-      <p style="font-size:0.95rem; font-weight:normal; color:#2b3a67;">
-        {% for t in top_positive %}
-          ✅ {{ t.product_name }} ({{ t.category }}) — {{ t.sentiment|floatformat:2 }}<br>
-        {% empty %}—{% endfor %}
-      </p>
-    </div>
-    <div class="card">
-      <h3>Top Negative</h3>
-      <p style="font-size:0.95rem; font-weight:normal; color:#2b3a67;">
-        {% for t in top_negative %}
-          ⚠️ {{ t.product_name }} ({{ t.category }}) — {{ t.sentiment|floatformat:2 }}<br>
-        {% empty %}—{% endfor %}
-      </p>
-    </div>
+<div class="card-container" style="
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1.2rem;
+  margin: 1.5rem 0;
+  width: 100%;
+">
+
+  <div class="card" style="
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: 280px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 1rem 1.2rem;
+    text-align: center;
+  ">
+    <h3 style="font-size:1.1rem; color:#2b3a67;">Total Reviews Analyzed</h3>
+    <p style="font-size:1.3rem; font-weight:600; color:#4CAF50; margin-top:0.5rem;">{{ total_reviews }}</p>
   </div>
+
+  <div class="card" style="
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: 280px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 1rem 1.2rem;
+    text-align: center;
+  ">
+    <h3 style="font-size:1.1rem; color:#2b3a67;">Average Sentiment</h3>
+    <p style="font-size:1.3rem; font-weight:600; color:#2196F3; margin-top:0.5rem;">
+      {{ avg_sentiment|floatformat:3 }}
+    </p>
+  </div>
+
+  <div class="card" style="
+    flex: 1 1 300px;
+    min-width: 300px;
+    max-width: 380px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 1rem 1.2rem;
+  ">
+    <h3 style="font-size:1.1rem; color:#2b3a67;">Top Positive</h3>
+    <p style="font-size:0.95rem; color:#2b3a67; line-height:1.4; max-height:150px; overflow-y:auto;">
+      {% for t in top_positive %}
+        ✅ {{ t.product_name }} ({{ t.category }}) — {{ t.sentiment|floatformat:2 }}<br>
+      {% empty %}—{% endfor %}
+    </p>
+  </div>
+
+  <div class="card" style="
+    flex: 1 1 300px;
+    min-width: 300px;
+    max-width: 380px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 1rem 1.2rem;
+  ">
+    <h3 style="font-size:1.1rem; color:#2b3a67;">Top Negative</h3>
+    <p style="font-size:0.95rem; color:#2b3a67; line-height:1.4; max-height:150px; overflow-y:auto;">
+      {% for t in top_negative %}
+        ⚠️ {{ t.product_name }} ({{ t.category }}) — {{ t.sentiment|floatformat:2 }}<br>
+      {% empty %}—{% endfor %}
+    </p>
+  </div>
+
+</div>
+
 
   <!-- Charts -->
   <div class="chart-row">
@@ -98,12 +153,6 @@ tr:hover td { background-color: #f4f9f4; }
       <canvas id="categoryChart" height="220"></canvas>
     </div>
   </div>
-
- 
-
-
- 
-
   {% endif %}
 </div>
 
@@ -126,9 +175,10 @@ new Chart(document.getElementById('sentimentChart'), {
   options: { plugins: { legend: { position: 'bottom' } } }
 });
 
-// Bar – Average Sentiment by Category
+// === Bar – Average Sentiment by Category (Hover Only) ===
 const categories = catData.map(c => c.category);
 const sentiments = catData.map(c => c.sentiment);
+
 new Chart(document.getElementById('categoryChart'), {
   type: 'bar',
   data: {
@@ -136,14 +186,46 @@ new Chart(document.getElementById('categoryChart'), {
     datasets: [{
       label: 'Avg Sentiment',
       data: sentiments,
-      backgroundColor: sentiments.map(v => v > 0.1 ? '#4CAF50' : v < -0.1 ? '#F44336' : '#FFC107'),
+      backgroundColor: sentiments.map(v =>
+        v > 0.1 ? '#4CAF50' : v < -0.1 ? '#F44336' : '#FFC107'
+      ),
       borderRadius: 6
     }]
   },
   options: {
-    scales: { y: { beginAtZero: true, min: -1, max: 1, title: { display: true, text: 'Sentiment' } } },
-    plugins: { legend: { display: false } }
+    scales: {
+      x: {
+        display: false  // 👈 hide category names
+      },
+      y: {
+        display: false, // 👈 hide sentiment axis values
+        beginAtZero: true,
+        min: -1,
+        max: 1
+      }
+    },
+    plugins: {
+      legend: { display: false }, // 👈 hide legend
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        titleColor: '#333',
+        bodyColor: '#333',
+        titleFont: { size: 13, weight: 'bold' },
+        bodyFont: { size: 12 },
+        callbacks: {
+          title: ctx => ctx[0].label,
+          label: ctx => `Average Sentiment: ${ctx.parsed.y.toFixed(2)}`
+        },
+        displayColors: false
+      },
+      datalabels: { display: false } // 👈 no text on bars
+    },
+    layout: {
+      padding: 10
+    }
   }
 });
+
 </script>
 {% endblock %}

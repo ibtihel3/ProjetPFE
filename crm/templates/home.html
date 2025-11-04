@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block content %}
 {% load plotly_dash %}
+
 <style>
   iframe.django-plotly-dash {
       background: transparent !important;
@@ -15,11 +16,286 @@
       padding: 0 !important;
       margin: 0 !important;
   }
+/* Chat button */
+#chat-button {
+  position: fixed;
+  bottom: 25px;
+  right: 25px;
+  background-color: #2563eb;
+  border-radius: 50%;
+  width: 70px;
+  height: 70px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  transition: transform 0.3s ease;
+}
+
+#chat-button:hover {
+  transform: scale(1.1);
+}
+
+#chat-icon {
+  width: 42px;
+  height: 42px;
+  transition: transform 0.3s ease;
+}
+
+#chat-button:hover #chat-icon {
+  transform: rotate(-10deg) scale(1.1);
+}
+
+/* Popup box */
+#chat-popup {
+  position: fixed;
+  bottom: 100px;
+  right: 25px;
+  width: 350px;
+  max-height: 500px;
+  background-color: #fff;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 1001;
+  font-family: Arial, sans-serif;
+  animation: fadeIn 0.3s ease;
+  transition: opacity 0.3s ease;
+}
+#chat-popup[style*="display: none"] {
+  opacity: 0;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-header {
+  background-color: #2563eb;
+  color: white;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chat-header .chat-icon-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  margin-left: 5px;
+  transition: transform 0.2s ease;
+}
+
+.chat-header .chat-icon-btn:hover {
+  transform: scale(1.2);
+}
+
+#chatbox {
+  padding: 10px;
+  flex: 1;
+  overflow-y: auto;
+  font-size: 14px;
+}
+
+.chat-input {
+  display: flex;
+  border-top: 1px solid #ddd;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  outline: none;
+}
+
+.chat-input button {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  cursor: pointer;
+}
+
 </style>
 
 <div style="width:100%; height:100%; padding:0; margin:0; background:transparent;">
   {% plotly_app name="dash_app" ratio=1 %}
 </div>
+
+<!-- 💬 Floating Chatbot Button -->
+<div id="chat-button" onclick="toggleChat()">
+ 💬
+</div>
+
+<!-- 💬 Chat Popup -->
+<div id="chat-popup" style="display:none;">
+<div class="chat-header">
+  <span>BoWise Assistant</span>
+  <div>
+    <button class="chat-icon-btn" onclick="expandChat()">⛶</button>
+    <button class="chat-icon-btn" onclick="closeChat()">✖</button>
+    <button class="chat-icon-btn" onclick="resetChat()">🔄</button>
+  </div>
+</div>
+  <div id="chatbox">
+    <div style="color:#888;">💬 New session started. How can I help you?</div>
+  </div>
+  <div id="typing-indicator" style="display:none;color:#888;padding:5px 10px;font-size:13px;">
+    BoWise Assistant is typing...
+  </div>
+  <div class="chat-input">
+    <input type="text" id="user-input" placeholder="Ask me something..." />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+
+<!-- JAVASCRIPT -->
+<script>
+function toggleChat() {
+  const popup = document.getElementById("chat-popup");
+  const chatBody = document.getElementById("chatbox");
+  const input = document.getElementById("user-input");
+  const typing = document.getElementById("typing-indicator");
+
+  if (popup.style.display === "flex") {
+    popup.style.display = "none";
+  } else {
+    chatBody.innerHTML = "";
+    const chatHistory = JSON.parse(localStorage.getItem("bowise_chat") || "[]");
+    if (chatHistory.length === 0) {
+      chatBody.innerHTML = "<div style='color:#888;'>💬 New session started. How can I help you?</div>";
+    } else {
+      chatHistory.forEach(msg => {
+        chatBody.innerHTML += `<div><b>${msg.sender}:</b> ${msg.message}</div>`;
+      });
+    }
+    input.value = "";
+    typing.style.display = "none";
+    popup.style.display = "flex";
+  }
+}
+
+function expandChat() {
+  // Redirect to your full chatbot page
+  window.location.href = "/chatbot_page/";
+}
+function closeChat() {
+  // Clear stored conversation
+  localStorage.removeItem("bowise_chat");
+
+  // Clear chat body visually
+  const chatBody = document.getElementById("chat-body") || document.getElementById("chatbox");
+  if (chatBody) {
+    chatBody.innerHTML = "<div style='color:#888;'>💬 Chat reset. How can I help you?</div>";
+  }
+
+  // Hide the popup
+  const popup = document.getElementById("chat-popup");
+  if (popup) {
+    popup.style.display = "none";
+  }
+}
+
+async function sendMessage() {
+  const input = document.getElementById("user-input");
+  const chatBody = document.getElementById("chatbox");
+  const typing = document.getElementById("typing-indicator");
+  const userMessage = input.value.trim();
+  if (!userMessage) return;
+
+  // Show user message
+  chatBody.innerHTML += `<div><b>You:</b> ${userMessage}</div>`;
+  saveMessage("You", userMessage);
+
+  input.value = "";
+  chatBody.scrollTop = chatBody.scrollHeight;
+  typing.style.display = "block";
+
+  try {
+    const response = await fetch("/chatbot/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: `message=${encodeURIComponent(userMessage)}`,
+    });
+    const data = await response.json();
+
+    typing.style.display = "none";
+    chatBody.innerHTML += `<div><b>BoWise:</b> ${data.response}</div>`;
+    saveMessage("BoWise", data.response);
+
+  } catch (err) {
+    typing.style.display = "none";
+    chatBody.innerHTML += `<div><b>BoWise:</b> ⚠️ Error sending message.</div>`;
+    saveMessage("BoWise", "⚠️ Error sending message.");
+  }
+
+  chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function saveMessage(sender, message) {
+  const chatHistory = JSON.parse(localStorage.getItem("bowise_chat") || "[]");
+  chatHistory.push({ sender, message });
+  localStorage.setItem("bowise_chat", JSON.stringify(chatHistory));
+}
+
+function closeChat() {
+  // Clear the saved chat history
+  localStorage.removeItem("bowise_chat");
+
+  // Reset the visible chat messages
+  const chatBody = document.getElementById("chat-body") || document.getElementById("chatbox");
+  if (chatBody) {
+    chatBody.innerHTML = "<div style='color:#888;'>💬 Chat reset. How can I help you?</div>";
+  }
+
+  // Hide the popup
+  const popup = document.getElementById("chat-popup");
+  if (popup) {
+    popup.style.display = "none";
+  }
+
+  // Reset typing and input
+  const typing = document.getElementById("typing-indicator");
+  const input = document.getElementById("user-input");
+  if (typing) typing.style.display = "none";
+  if (input) input.value = "";
+}
+function resetChat() {
+  localStorage.removeItem("bowise_chat");
+  const chatBody = document.getElementById("chat-body") || document.getElementById("chatbox");
+  if (chatBody) {
+    chatBody.innerHTML = "<div style='color:#888;'>💬 Chat reloaded. How can I help you?</div>";
+  }
+}
+
+// Helper to get CSRF token
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== "") {
+    const cookies = document.cookie.split(";");
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + "=")) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+</script>
+
 {% plotly_footer %}
 {% endblock %}
 

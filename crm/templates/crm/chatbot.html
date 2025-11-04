@@ -83,6 +83,20 @@ document.getElementById('chat-form').onsubmit = async function(e) {
   chatbox.innerHTML += `<div class='bot-msg'><b>Bot:</b> ${botResponse}</div>`;
   chatbox.scrollTop = chatbox.scrollHeight;
 };
+
+window.addEventListener("DOMContentLoaded", () => {
+  const chatContainer = document.getElementById("chatbox");
+  const chatHistory = JSON.parse(localStorage.getItem("bowise_chat") || "[]");
+  chatHistory.forEach(msg => {
+    chatContainer.innerHTML += `<div><b>${msg.sender}:</b> ${msg.message}</div>`;
+  });
+});
+
+function resetChat() {
+  localStorage.removeItem("bowise_chat");
+  const chatBody = document.getElementById("chatbox");
+  chatBody.innerHTML = "<div style='color:#888;'>💬 Chat reset. How can I help you?</div>";
+}
 </script>
 
 {% endblock %}
