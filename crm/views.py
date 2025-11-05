@@ -8,8 +8,8 @@ from bowise_crm import settings
 from .models import Product, Client
 from .forms import ProductForm, ClientForm
 import pandas as pd
-from .ml_utils import predict_discount
-from .ml_utils import predict_clv
+from .services.azureml_xgb import client_to_payload_dict, predict_clients_via_api
+from .services.azureml_products import product_to_payload_dict, predict_products_via_api
 import io
 import json
 import pandas as pd
@@ -232,25 +232,40 @@ def import_csv(request):
 # ==========================
 
 
+
+
 @login_required
 def predict_for_product(request, pk):
-    """Predict discount for one product using ML model."""
     product = get_object_or_404(Product, pk=pk)
-    product.discount_percentage = predict_discount(product)
-    product.save()
+    payload = [product_to_payload_dict(product)]
+    pred = predict_products_via_api(payload)[0]
+    product.discount_percentage = float(pred)
+    product.save(update_fields=["discount_percentage"])
     messages.success(request, f"🔮 Predicted discount: {product.discount_percentage:.2f}% for {product.product_name}")
     return redirect("product_list")
 
 @login_required
 def predict_all_discounts(request):
-    """Predict discounts for all products missing a value."""
-    products = Product.objects.filter(discount_percentage__isnull=True)
-    count = 0
-    for p in products:
-        p.discount_percentage = predict_discount(p)
-        p.save()
-        count += 1
-    messages.success(request, f"🔮 Predicted discounts for {count} products .")
+    qs = Product.objects.filter(discount_percentage__isnull=True).only(
+        "id", "product_name", "discount_percentage",
+        "actual_price", "discounted_price", "category", "rating_count",
+        "about_product", "stock", "rating", "status",
+    )
+
+    objs = list(qs)
+    updated = 0
+
+    for i in range(0, len(objs), BATCH_SIZE):
+        chunk = objs[i:i+BATCH_SIZE]
+        payload = [product_to_payload_dict(p) for p in chunk]
+        preds = predict_products_via_api(payload)
+        for p, y in zip(chunk, preds):
+            p.discount_percentage = float(y)
+        with transaction.atomic():
+            Product.objects.bulk_update(chunk, ["discount_percentage"])
+        updated += len(chunk)
+
+    messages.success(request, f"✅ Predicted discounts for {updated} products.")
     return redirect("product_list")
 
 
@@ -260,29 +275,44 @@ def predict_all_discounts(request):
 # ==========================
 
 
+BATCH_SIZE = 64  # safe size for payloads
 
 @login_required
 def predict_for_client(request, pk):
-    """Predict clv for one client using ML model."""
-    clients = get_object_or_404(Client, pk=pk)
-    clients.predicted_clv = predict_clv(clients)
-    clients.save()
-    messages.success(request, f"🔮 Predicted clv: {clients.predicted_clv:.2f} for {clients.customer_id}")
+    client = get_object_or_404(Client, pk=pk)
+    pred = predict_clients_via_api([client_to_payload_dict(client)])[0]
+    client.predicted_clv = float(pred)
+    client.save(update_fields=["predicted_clv"])
+    messages.success(request, f"🔮 Predicted CLV: {client.predicted_clv:.2f} for {client.customer_id}")
     return redirect("client_list")
 
 @login_required
 def predict_all_clv(request):
-    """Predict CLV for all clients using ML model."""
-    clients = Client.objects.all()
-    count = 0
-    for c in clients:
-        c.predicted_clv = predict_clv(c)
-        c.save()
-        count += 1
-        print(f"✅ Predicted CLV for {c.customer_id}: {c.predicted_clv:.2f}")
+    qs = Client.objects.all().only(
+        "id","customer_id","predicted_clv",
+        "total_spent","avg_order_value","total_orders","total_items",
+        "avg_discount","avg_review_rating","avg_seller_rating","avg_delivery_days",
+        "total_returns","return_ratio","total_previous_returns","is_prime_member",
+        "customer_tenure_days","recency_days","tenure_days","frequency",
+    )
 
-    messages.success(request, f"🔮 Predicted CLV for {count} clients.")
-    print(f"🎯 CLV prediction completed for {count} clients.")
+    updated = 0
+    objs = list(qs)  # materialize once
+
+    # chunked calls to the API
+    for i in range(0, len(objs), BATCH_SIZE):
+        chunk = objs[i:i+BATCH_SIZE]
+        payload = [client_to_payload_dict(c) for c in chunk]
+        preds = predict_clients_via_api(payload)
+        for c, p in zip(chunk, preds):
+            c.predicted_clv = float(p)
+        # bulk update per chunk for speed
+        with transaction.atomic():
+            Client.objects.bulk_update(chunk, ["predicted_clv"])
+
+        updated += len(chunk)
+
+    messages.success(request, f"✅ Predicted CLV for {updated} clients.")
     return redirect("client_list")
 
 
@@ -1042,46 +1072,28 @@ from django.db.models import Q
 from .models import Product
 
 def ajax_search_products(request):
-    query = request.GET.get("q", "").strip()
-    category_filter = request.GET.get("category", "")
-    min_price = request.GET.get("min_price", "")
-    max_price = request.GET.get("max_price", "")
-    results = []
+    """Return JSON results for product live search."""
+    query = request.GET.get("q", "").strip().lower()
+    products = Product.objects.all()
 
     if query:
-        words = query.split()
-        filters = Q()
-        for word in words:
-            filters &= (
-                Q(product_name__icontains=word)
-                | Q(category__icontains=word)
-                | Q(about_product__icontains=word)
-            )
+        products = products.filter(product_name__icontains=query)
 
-        # Apply category filter
-        if category_filter:
-            filters &= Q(category__iexact=category_filter)
-
-        # Apply price filters
-        if min_price:
-            filters &= Q(unit_price__gte=min_price)
-        if max_price:
-            filters &= Q(unit_price__lte=max_price)
-
-        products = Product.objects.filter(filters)[:20]
-
-        results = [
-            {
-                "name": p.product_name,
-                "category": p.category,
-                "actual_price": p.actual_price,
-                "discounted_price": p.discounted_price,
-            }
-            for p in products
-        ]
+    results = [
+        {
+            "id": p.id,
+            "name": p.product_name,
+            "category": p.category or "-",
+            "discounted_price": getattr(p, "discounted_price", 0),
+            "actual_price": getattr(p, "actual_price", 0),
+            "rating": getattr(p, "rating", "-"),
+            "stock": getattr(p, "stock", 0),
+            "status": getattr(p, "status", "-"),
+        }
+        for p in products[:50]  # limit for speed
+    ]
 
     return JsonResponse({"results": results})
-
 
 # ==============================================
 # FastAPI : Alert Notification for at risk clients
@@ -1141,5 +1153,75 @@ def notifications(request):
             "regions": regions,
             "selected_region": selected_region,
             "selected_risk": selected_risk,
+        },
+    )
+# ==========================
+# 💰 Compare Price via SerpApi
+# ==========================
+from django.utils import timezone
+from django.views.decorators.http import require_POST
+from .services.serpapi_utils import get_serpapi_prices
+
+@login_required
+@require_POST
+def refresh_compare_price(request, pk):
+    """Fetch competitor prices for one product via SerpApi."""
+    product = get_object_or_404(Product, pk=pk)
+
+    try:
+        offers = get_serpapi_prices(product.product_name)
+        if not offers:
+            messages.warning(request, "No competitor prices found for this product.")
+            return redirect("product_list")
+
+        best = offers[0]
+        product.compare_price = best["price"]
+        product.compare_currency = best.get("currency", "EUR")
+        product.compare_last_checked = timezone.now()
+        product.save(update_fields=["compare_price", "compare_currency", "compare_last_checked"])
+
+        messages.success(request, f"✅ Compare price updated: {best['price']} € ({best['source']})")
+
+    except Exception as e:
+        messages.error(request, f"⚠️ Error fetching prices: {e}")
+
+    return redirect("product_list")
+
+
+
+# ==========================
+# 💰 Compare Price (results page)
+# ==========================
+from .services.serpapi_utils import get_serpapi_prices
+from django.utils import timezone
+
+@login_required
+def compare_price_page(request, pk):
+    """
+    Fetch competitor prices for one product via SerpApi and SHOW a results page.
+    Also updates product.compare_price fields with the best offer.
+    """
+    product = get_object_or_404(Product, pk=pk)
+
+    offers = []
+    error = None
+    try:
+        offers = get_serpapi_prices(product.product_name)
+        if offers:
+            best = offers[0]
+            product.compare_price = best["price"]
+            product.compare_currency = best.get("currency", "EUR")
+            product.compare_last_checked = timezone.now()
+            product.save(update_fields=["compare_price", "compare_currency", "compare_last_checked"])
+    except Exception as e:
+        error = str(e)
+
+    return render(
+        request,
+        "crm/compare_results.html",
+        {
+            "product": product,
+            "offers": offers,   # sorted by price asc
+            "error": error,
         },
     )

@@ -1,4 +1,6 @@
+from dotenv import load_dotenv
 import os
+load_dotenv()
 import csv
 from builtins import float
 from crm.models import Client

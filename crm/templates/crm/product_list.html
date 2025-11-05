@@ -39,6 +39,7 @@
     <th>Similar Products</th>
     <th>Predicted Discount (%)</th>
     <th>Discounted (€)</th>
+    <th>Compare in Market</th>
     <th>Actual (€)</th>
     <th>Rating</th>
     <th>Rating Count</th>
@@ -84,6 +85,16 @@
         <a href="{% url 'predict_for_product' p.id %}">🔮 Predict</a>
       {% endif %}
     </td>
+    <td>
+        <a href="{% url 'compare_price_page' p.id %}"
+     class="btn btn-sm btn-outline-success"
+     style="margin-left:4px; font-size:13px; padding:3px 8px; border-radius:6px;">
+     💰 Compare
+  </a>
+  {% if p.compare_price %}
+    <br><small style="color:#007bff;">Market: {{ p.compare_price }} {{ p.compare_currency|default:"€" }}</small>
+  {% endif %}
+    </td>
     <td>{{ p.discounted_price}}</td>
     <td>{{ p.actual_price|floatformat:2 }}</td>
     <td>{{ p.rating|default:"-" }}</td>
@@ -118,10 +129,11 @@
     <td>{{ p.creation_date }}</td>
     <td>{{ p.last_updated_date }}</td>
     <td>{{ p.status }}</td>
-    <td>
-      <a href="{% url 'product_edit' p.id %}">✏️ Edit</a> |
-      <a href="{% url 'product_delete' p.id %}">🗑️ Delete</a>
-    </td>
+<td>
+  <a href="{% url 'product_edit' p.id %}">✏️ Edit</a> |
+  <a href="{% url 'product_delete' p.id %}">🗑️ Delete</a> |
+</td>
+
   </tr>
    {% empty %}
    <tr><td colspan="13" style="text-align:center;">No products found.</td></tr>
@@ -191,53 +203,117 @@ window.onclick = function(event) {
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("productSearch");
+  const table = document.querySelector("table");
   const resultsBox = document.getElementById("searchResults");
+  let timeout = null;
 
-  // when typing
-  searchInput.addEventListener("input", async () => {
+  searchInput.addEventListener("input", () => {
+    clearTimeout(timeout);
     const query = searchInput.value.trim();
-
-    if (!query) {
-      resultsBox.style.display = "none";
-      resultsBox.innerHTML = "";
-      return;
-    }
-
-    // make AJAX call to your Django endpoint
-    const response = await fetch(`/ajax/search-products/?q=${encodeURIComponent(query)}`);
-    const data = await response.json();
-
-    // if results found
-    if (data.results && data.results.length > 0) {
-      resultsBox.style.display = "block";
-      resultsBox.innerHTML = `
-        <div class="p-2 border-bottom fw-bold text-secondary bg-light">Results</div>
-        <div class="row row-cols-2 g-2 p-2">
-          ${data.results.map(
-            (p) => `
-              <div class="col p-2 border-bottom hover-bg-light">
-                <strong>${p.name}</strong><br>
-                <small class="text-muted">${p.category}</small><br>
-                <span class="fw-semibold text-success">$${p.discounted_price}</span>
-                <span class="text-muted me-2"><s>$${p.actual_price}</s></span>
-              </div>
-            `
-          ).join("")}
-        </div>`;
-    } else {
-      // if nothing found
-      resultsBox.style.display = "block";
-      resultsBox.innerHTML = '<div class="p-3 text-muted">No results found</div>';
-    }
+    resultsBox.style.display = "none"; // hide old dropdown
+    timeout = setTimeout(() => fetchProducts(query), 300);
   });
 
-  // hide menu when clicking outside
-  document.addEventListener("click", (e) => {
-    if (!resultsBox.contains(e.target) && e.target !== searchInput) {
-      resultsBox.style.display = "none";
+  async function fetchProducts(query) {
+    try {
+      // Remove all old rows except the header
+      const rows = table.querySelectorAll("tr:not(:first-child)");
+      rows.forEach(r => r.remove());
+
+      // Show loading row
+      const loadingRow = document.createElement("tr");
+      loadingRow.innerHTML = `<td colspan="15" style="text-align:center;">⏳ Searching...</td>`;
+      table.appendChild(loadingRow);
+
+      const response = await fetch(`/ajax/search-products/?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      const products = data.results || [];
+
+      // Remove loading row
+      loadingRow.remove();
+
+      if (products.length > 0) {
+        products.forEach(p => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>
+              ${p.name && p.name.split(' ').length > 3
+                ? `${p.name.split(' ').slice(0,3).join(' ')}...
+                   <a href="#" onclick="openModal('name-${p.id}');return false;">Read more</a>
+                   <div id="modal-name-${p.id}" class="modal">
+                     <div class="modal-content">
+                       <span class="close" onclick="closeModal('name-${p.id}')">&times;</span>
+                       <h3>${p.name}</h3>
+                     </div>
+                   </div>`
+                : (p.name || '-')}
+            </td>
+
+            <td>${p.category || '-'}</td>
+            <td><a href="/products/${p.id}/similar/">🔍 Similar</a></td>
+
+            <td style="color:green;">
+              ${p.discount_percentage
+                ? p.discount_percentage
+                : `<a href="/products/${p.id}/predict_for_product/">🔮 Predict</a>`}
+            </td>
+
+            <td>${p.discounted_price || '-'}</td>
+
+            <td>
+              <a href="/products/${p.id}/compare/" class="btn btn-sm btn-outline-success"
+                 style="margin-left:4px; font-size:13px; padding:3px 8px; border-radius:6px;">
+                 💰 Compare
+              </a>
+              ${p.compare_price ? `<br><small style="color:#007bff;">Market: ${p.compare_price} €</small>` : ''}
+            </td>
+
+            <td>${p.actual_price || '-'}</td>
+            <td>${p.rating || '-'}</td>
+            <td>${p.rating_count || '-'}</td>
+
+            <td>
+              ${p.about && p.about.split(' ').length > 3
+                ? `${p.about.split(' ').slice(0,3).join(' ')}...
+                   <a href="#" onclick="openModal('about-${p.id}');return false;">Read more</a>
+                   <div id="modal-about-${p.id}" class="modal">
+                     <div class="modal-content">
+                       <span class="close" onclick="closeModal('about-${p.id}')">&times;</span>
+                       <h3>${p.name}</h3>
+                       <p>${p.about}</p>
+                     </div>
+                   </div>`
+                : (p.about || '-')}
+            </td>
+
+            <td>${p.stock || '-'}</td>
+            <td>${p.creation_date || '-'}</td>
+            <td>${p.last_updated_date || '-'}</td>
+            <td>${p.status || '-'}</td>
+
+            <td>
+              <a href="/products/${p.id}/edit/">✏️ Edit</a> |
+              <a href="/products/${p.id}/delete/">🗑️ Delete</a> |
+            </td>
+          `;
+          table.appendChild(row);
+        });
+      } else {
+        const emptyRow = document.createElement("tr");
+        emptyRow.innerHTML = `<td colspan="15" style="text-align:center;">No products found.</td>`;
+        table.appendChild(emptyRow);
+      }
+    } catch (error) {
+      console.error("⚠️ Error fetching products:", error);
+      const errorRow = document.createElement("tr");
+      errorRow.innerHTML = `<td colspan="15" style="text-align:center;color:red;">Error loading products.</td>`;
+      table.appendChild(errorRow);
     }
-  });
+  }
 });
 </script>
+
+
+
 
 {% endblock %}

@@ -38,4 +38,7 @@ urlpatterns = [
     path("templates/edit/<int:pk>/", views.edit_template, name="edit_template"),
     path("templates/delete/<int:pk>/", views.delete_template, name="delete_template"),
     path("templates/toggle/", views.toggle_template_status, name="toggle_template_status"),
+
+    path("crm/<int:pk>/refresh-compare/", views.refresh_compare_price, name="refresh_compare_price"),
+    path("products/<int:pk>/compare/", views.compare_price_page, name="compare_price_page"),
 ]

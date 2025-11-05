@@ -5,13 +5,14 @@ import pandas as pd
 import numpy as np
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-
+from dotenv import load_dotenv
+import os
+load_dotenv()
 # ==========================================================
 # Django ORM setup
 # ==========================================================
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bowise_crm.settings")
 django.setup()
-
 #import Django model after setup()
 from crm.models import Client
 
