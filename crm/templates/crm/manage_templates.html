@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+/* ======= Template Manager Styling (matches Newsletter & Dashboard) ======= */
+body { font-family:'Segoe UI',Roboto,Arial,sans-serif; background-color:#f7f9fc; }
+
+.template-container {
+  width: 92%;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  padding: 30px 36px;
+}
+
+.template-container h2 {
+  color: #4CAF50;
+  margin-bottom: 18px;
+  border-left: 6px solid #4CAF50;
+  padding-left: 12px;
+  font-weight: 600;
+}
+
+.form-label {
+  font-weight: 500;
+  color: #2b3a67;
+}
+
+.form-control, .form-select {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: border-color 0.2s ease;
+}
+.form-control:focus, .form-select:focus {
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76,175,80,0.15);
+  outline: none;
+}
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+}
+
+.btn-primary {
+  background: #4CAF50;
+  color: white;
+}
+.btn-primary:hover { background: #43a047; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 30px;
+}
+.table th {
+  background-color: #4CAF50;
+  color: white;
+  font-weight: 500;
+  padding: 10px;
+  text-align: left;
+}
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+.table tr:hover {
+  background-color: #f2f7f3;
+  transition: background-color 0.2s;
+}
+.table .badge {
+  font-size: 0.85rem;
+  border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+  .template-container { padding: 20px; }
+  .btn { width: 100%; }
+  .table { font-size: 0.9rem; }
+}
+.badge {
+  transition: all 0.2s ease;
+}
+</style>
+
+
+<div class="container mt-5">
+  <h2 class="mb-4 text-center">📨 Manage Message Templates</h2>
+  <p class="text-muted text-center mb-5">
+    Add or update automated templates for birthdays and at-risk clients.
+  </p>
+
+  <!-- Template Form -->
+  <form method="POST" class="card p-4 mb-5">
+    {% csrf_token %}
+    <input type="hidden" name="channel" value="email">
+    <div class="mb-3">
+      <label class="form-label">Event Type</label>
+      <select name="event_type" class="form-select shadow-sm" required>
+        <option value="birthday">🎂 Birthday</option>
+        <option value="risk">⚠️ At-Risk Client</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Subject</label>
+      <input type="text" name="subject" class="form-control shadow-sm" placeholder="Enter email subject..." required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Message</label>
+      <textarea name="message" rows="5" class="form-control shadow-sm" placeholder="Write your campaign content..." required></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 py-2">💾 Save Template</button>
+  </form>
+
+  <!-- Existing Templates -->
+  <div class="card p-4">
+    <h4 class="mb-3">📋 Existing Templates</h4>
+    <div class="table-responsive">
+      <table class="table table-striped table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Subject</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+<tbody>
+  {% for tpl in templates %}
+  <tr>
+    <td>{{ tpl.get_event_type_display }}</td>
+    <td>{{ tpl.subject }}</td>
+    <td>
+      {% if tpl.active %}
+        <span class="badge bg-success">Active</span>
+      {% else %}
+        <span class="badge bg-secondary">Inactive</span>
+      {% endif %}
+    </td>
+    <td>
+      <div class="d-flex gap-2">
+        <!-- View -->
+        <a href="{% url 'view_template' tpl.id %}" class="btn btn-sm btn-outline-primary">👁 View</a>
+
+        <!-- Edit -->
+        <a href="{% url 'edit_template' tpl.id %}" class="btn btn-sm btn-outline-success">✏️ Edit</a>
+
+        <!-- Delete -->
+        <form method="POST" action="{% url 'delete_template' tpl.id %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-danger"
+                  onclick="return confirm('Are you sure you want to delete this template?');">
+            🗑 Delete
+          </button>
+        </form>
+
+        <!-- Activate / Deactivate -->
+        <button class="btn btn-sm {% if tpl.active %}btn-success{% else %}btn-secondary{% endif %} toggle-btn"
+                data-id="{{ tpl.id }}">
+          {% if tpl.active %}Deactivate{% else %}Activate{% endif %}
+        </button>
+      </div>
+    </td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="4" class="text-center text-muted py-3">No templates yet.</td>
+  </tr>
+  {% endfor %}
+</tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      const buttons = document.querySelectorAll(".toggle-btn");
+      buttons.forEach(btn => {
+        btn.addEventListener("click", function() {
+          const templateId = this.dataset.id;
+          const button = this;
+
+          fetch("{% url 'toggle_template_status' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "X-CSRFToken": "{{ csrf_token }}",
+            },
+            body: new URLSearchParams({ id: templateId })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              const row = button.closest("tr");
+              const badge = row.querySelector(".badge");
+
+              if (data.active) {
+                badge.textContent = "Active";
+                badge.classList.remove("bg-secondary");
+                badge.classList.add("bg-success");
+                button.textContent = "Deactivate";
+                button.classList.remove("btn-secondary");
+                button.classList.add("btn-success");
+              } else {
+                badge.textContent = "Inactive";
+                badge.classList.remove("bg-success");
+                badge.classList.add("bg-secondary");
+                button.textContent = "Activate";
+                button.classList.remove("btn-success");
+                button.classList.add("btn-secondary");
+              }
+            } else {
+              alert("⚠️ " + (data.error || "Could not toggle status."));
+            }
+          })
+          .catch(error => {
+            console.error("Error:", error);
+            alert("❌ Something went wrong.");
+          });
+        });
+      });
+    });
+  </script>
+</div>
+{% endblock %}

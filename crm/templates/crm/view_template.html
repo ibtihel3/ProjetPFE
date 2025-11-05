@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="template-container">
+  <h2>👁 View Template</h2>
+  <p><strong>Event Type:</strong> {{ tpl.get_event_type_display }}</p>
+  <p><strong>Subject:</strong> {{ tpl.subject }}</p>
+  <p><strong>Status:</strong>
+    {% if tpl.active %}
+      <span class="badge bg-success">Active</span>
+    {% else %}
+      <span class="badge bg-secondary">Inactive</span>
+    {% endif %}
+  </p>
+  <p><strong>Message:</strong></p>
+  <div style="white-space:pre-wrap; background:#f8f9fa; padding:10px; border-radius:8px;">
+    {{ tpl.message }}
+  </div>
+  <a href="{% url 'manage_templates' %}" class="btn btn-primary mt-3">← Back</a>
+</div>
+{% endblock %}

@@ -880,7 +880,7 @@ def send_newsletter(request):
 
         # === 1️⃣ Fetch emails & phone numbers from crm_client ===
         conn = sqlite3.connect("db.sqlite3")
-        df_clients = pd.read_sql_query("SELECT * FROM crm_client_newsletter", conn)
+        df_clients = pd.read_sql_query("SELECT * FROM crm_clientnewsletter", conn)
         conn.close()
 
         emails = df_clients["email"].dropna().unique().tolist()
@@ -937,6 +937,101 @@ def send_newsletter(request):
         return redirect("send_newsletter")  # or render again if you prefer
 
     return render(request, "newsletter_form.html")
+
+# ==============================================
+# Automated emails (Birthday & Risk Clients only)
+# ==============================================
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from .models import MessageTemplate
+
+
+@login_required
+def manage_templates(request):
+    """Add or update templates for Birthday and At-Risk Client automated emails."""
+    templates = MessageTemplate.objects.filter(event_type__in=["birthday", "risk"]).order_by("-id")
+
+    if request.method == "POST":
+        event_type = request.POST.get("event_type")
+        subject = request.POST.get("subject")
+        message = request.POST.get("message")
+        channel = request.POST.get("channel")
+        active = bool(request.POST.get("active"))
+
+        if not subject or not message:
+            messages.error(request, "❌ Please fill both subject and message.")
+            return redirect("manage_templates")
+
+        MessageTemplate.objects.create(
+            event_type=event_type,
+            subject=subject,
+            message=message,
+            channel="email",
+            active=active
+        )
+
+        messages.success(
+            request,
+            f"✅ New {event_type.title()} template saved ({channel})."
+        )
+        return redirect("manage_templates")
+
+    return render(request, "crm/manage_templates.html", {"templates": templates})
+
+
+from django.http import JsonResponse
+from .models import MessageTemplate
+from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+@require_POST
+def toggle_template_status(request):
+    """Toggle the 'active' status of a message template dynamically."""
+    template_id = request.POST.get("id")
+    try:
+        tpl = MessageTemplate.objects.get(id=template_id)
+        tpl.active = not tpl.active
+        tpl.save()
+        return JsonResponse({
+            "success": True,
+            "active": tpl.active,
+            "status": "Active" if tpl.active else "Inactive"
+        })
+    except MessageTemplate.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Template not found."})
+
+
+@login_required
+def view_template(request, pk):
+    tpl = get_object_or_404(MessageTemplate, pk=pk)
+    return render(request, "crm/view_template.html", {"tpl": tpl})
+
+
+@login_required
+def edit_template(request, pk):
+    tpl = get_object_or_404(MessageTemplate, pk=pk)
+
+    if request.method == "POST":
+        tpl.subject = request.POST.get("subject")
+        tpl.message = request.POST.get("message")
+        tpl.active = bool(request.POST.get("active"))
+        tpl.save()
+        messages.success(request, "✅ Template updated successfully.")
+        return redirect("manage_templates")
+
+    return render(request, "crm/edit_template.html", {"tpl": tpl})
+
+
+@login_required
+def delete_template(request, pk):
+    tpl = get_object_or_404(MessageTemplate, pk=pk)
+    tpl.delete()
+    messages.success(request, "🗑 Template deleted successfully.")
+    return redirect("manage_templates")
+
+
 
 # ==============================================
 # Fuzzy search with words

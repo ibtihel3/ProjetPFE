@@ -56,3 +56,40 @@ class Client(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.customer_id})"
+
+
+class ClientNewsletter(models.Model):
+    """Clients subscribed to newsletters and promotional emails."""
+    name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    region = models.CharField(max_length=100, blank=True, null=True)
+    date_of_birth = models.DateField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    subscribed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.email})"
+
+class MessageTemplate(models.Model):
+    EVENT_CHOICES = [
+        ("birthday", "Birthday"),
+        ("risk", "At-Risk Client"),
+        ("sale", "Sale Promotion"),
+        ("custom", "Custom Campaign"),
+    ]
+    CHANNEL_CHOICES = [
+        ("email", "Email"),
+        ("whatsapp", "WhatsApp"),
+        ("both", "Both"),
+    ]
+
+    event_type = models.CharField(max_length=50, choices=EVENT_CHOICES)
+    subject = models.CharField(max_length=255)
+    message = models.TextField(help_text="Use placeholders like {name}, {region}, {discount}")
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, default="email")
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.get_event_type_display()} ({self.channel})"
+

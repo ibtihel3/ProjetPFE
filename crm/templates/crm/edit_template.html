@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="template-container">
+  <h2>✏️ Edit Template</h2>
+  <form method="POST">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label">Subject</label>
+      <input type="text" name="subject" class="form-control" value="{{ tpl.subject }}" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Message</label>
+      <textarea name="message" rows="5" class="form-control" required>{{ tpl.message }}</textarea>
+    </div>
+    <div class="form-check mb-3">
+      <input type="checkbox" name="active" id="active" class="form-check-input" {% if tpl.active %}checked{% endif %}>
+      <label for="active" class="form-check-label">Activate this template</label>
+    </div>
+    <button type="submit" class="btn btn-success">💾 Save Changes</button>
+    <a href="{% url 'manage_templates' %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

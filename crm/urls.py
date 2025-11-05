@@ -32,4 +32,10 @@ urlpatterns = [
     path("newsletter/", views.send_newsletter, name="send_newsletter"),
     path("ajax/search-products/", views.ajax_search_products, name="ajax_search_products"),
     path("notify/at_risk_clients/", views.notifications, name="notifications"),
+
+    path("templates/", views.manage_templates, name="manage_templates"),
+    path("templates/view/<int:pk>/", views.view_template, name="view_template"),
+    path("templates/edit/<int:pk>/", views.edit_template, name="edit_template"),
+    path("templates/delete/<int:pk>/", views.delete_template, name="delete_template"),
+    path("templates/toggle/", views.toggle_template_status, name="toggle_template_status"),
 ]
