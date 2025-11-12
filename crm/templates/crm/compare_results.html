@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>💰 Price Comparison</h2>
+
+<!-- Your product on top -->
+<div style="border:1px solid #e5e7eb; border-radius:12px; padding:16px; margin-bottom:16px;">
+  <h3 style="margin:0 0 8px 0;">{{ product.product_name }}</h3>
+  <div style="color:#6b7280; margin-bottom:8px;">Category: {{ product.category }}</div>
+
+  <div style="display:flex; gap:20px; flex-wrap:wrap;">
+    <div>
+      <div style="font-weight:600;">Your price (actual)</div>
+      <div style="font-size:20px;">{{ product.actual_price|floatformat:2 }} €</div>
+    </div>
+    {% if product.discounted_price %}
+    <div>
+      <div style="font-weight:600;">Your price (discounted)</div>
+      <div style="font-size:20px;">{{ product.discounted_price|floatformat:2 }} €</div>
+    </div>
+    {% endif %}
+    {% if product.compare_price %}
+    <div>
+      <div style="font-weight:600;">Market lowest</div>
+      <div style="font-size:20px; color:#10b981;">
+        {{ product.compare_price|floatformat:2 }} {{ product.compare_currency|default:"€" }}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if error %}
+  <div class="alert alert-warning">⚠️ {{ error }}</div>
+{% endif %}
+
+<!-- Offers table -->
+{% if offers %}
+  <table border="1" cellpadding="8" style="width:100%; border-collapse:collapse;">
+    <tr style="background:#4CAF50; color:white;">
+      <th>Source</th>
+      <th>Title</th>
+      <th>Price</th>
+
+    </tr>
+    {% for o in offers %}
+      <tr>
+        <td>{{ o.source }}</td>
+        <td>{{ o.title }}</td>
+        <td><strong>{{ o.price|floatformat:2 }}</strong> {{ o.currency }}</td>
+
+      </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p>No competitor offers found for this product.</p>
+{% endif %}
+
+<div style="margin-top:16px;">
+  <a href="{% url 'product_list' %}">⬅️ Back to products</a>
+</div>
+
+{% endblock %}

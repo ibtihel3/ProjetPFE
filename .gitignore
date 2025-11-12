@@ -1,0 +1,12 @@
+.venv/
+.venv/
+.venv/
+data/
+venv/
+.venv/
+data/
+__pycache__/
+*.log
+*.pkl
+*.zip
+*.dll

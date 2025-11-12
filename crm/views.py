@@ -324,7 +324,7 @@ def predict_all_clv(request):
 
 
 # === Configure Groq ===
-client = Groq(api_key="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")
+client = Groq(api_key="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")
 
 # ===== Load & Index Product Data Once =====
 print("⏳ Building TF-IDF index ")
@@ -507,8 +507,8 @@ Available products:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ],
-            temperature=0.45,
-            max_tokens=1200,
+            temperature=0.2,
+            max_tokens=5000,
         )
         answer = completion.choices[0].message.content
         return JsonResponse({"response": answer})
@@ -836,7 +836,7 @@ Your task:
 Be precise and consistent with the existing data structure.
 """
 
-        client = Groq(api_key="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")
+        client = Groq(api_key="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")
 
         # === Ask model to classify ===
         completion = client.chat.completions.create(
@@ -849,8 +849,8 @@ Be precise and consistent with the existing data structure.
                                f"<image src='data:image/jpeg;base64,{image_b64}' />"
                 },
             ],
-            temperature=0.2,
-            max_tokens=200,
+            temperature=0.4,
+            max_tokens=500,
         )
 
         predicted_category = completion.choices[0].message.content.strip()
@@ -939,8 +939,8 @@ def send_newsletter(request):
 
         # === If user clicked “Send WhatsApp Message” ===
         elif action == "whatsapp":
-            twilio_sid = "AC02f4e34953e5a229eda0fafce078d262"
-            twilio_auth = "40321a0abcc307fcc9b1904db82c482b"
+            twilio_sid = "AC492e6926f87b3bc68d3035fa775979ea"
+            twilio_auth = "ef01d486696bd1c12aafca743f4441aa"
             twilio_whatsapp = "whatsapp:+14155238886"  # Twilio sandbox number
 
             client = TwilioClient(twilio_sid, twilio_auth)

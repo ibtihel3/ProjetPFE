@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import dash
 from pathlib import Path
 from dotenv import load_dotenv
 import os
@@ -142,9 +142,10 @@ CHANNEL_LAYERS = {
 
 # Static and media files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
+
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / 'static']
 STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
@@ -165,6 +166,7 @@ PLOTLY_DASH = {
     "http_route": "dpd/views",
     "cache_timeout_initial_arguments": 60,
     "insert_demo_migrations": False,
+    "serve_locally": False,
 }
 
 # === Email Settings ===
@@ -177,6 +179,6 @@ EMAIL_HOST_PASSWORD = "pbjmdhqvijltnbga"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # === Twilio credentials ===
-TWILIO_ACCOUNT_SID = "AC02f4e34953e5a229eda0fafce078d262"
-TWILIO_AUTH_TOKEN = "40321a0abcc307fcc9b1904db82c482b"
+TWILIO_ACCOUNT_SID = "AC492e6926f87b3bc68d3035fa775979ea"
+TWILIO_AUTH_TOKEN = "ef01d486696bd1c12aafca743f4441aa"
 TWILIO_WHATSAPP_NUMBER = "whatsapp:+14155238886"
